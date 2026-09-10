@@ -3,10 +3,9 @@ package repositories
 import (
 	"context"
 	"errors"
-	"fmt"
-	"sync"
-	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/polar-bear-cu/sgt-auth-service/models"
 )
 
@@ -18,45 +17,44 @@ type RefreshTokenRepository interface {
 	Revoke(ctx context.Context, hash string) error
 }
 
-type inMemoryRefreshToken struct {
-	mu     sync.Mutex
-	byHash map[string]models.RefreshToken
-	seq    int
+type RefreshTokenPostgres struct {
+	db *pgxpool.Pool
 }
 
-func NewInMemoryRefreshToken() RefreshTokenRepository {
-	return &inMemoryRefreshToken{byHash: map[string]models.RefreshToken{}}
+func NewRefreshTokenPostgres(db *pgxpool.Pool) RefreshTokenRepository {
+	return &RefreshTokenPostgres{db: db}
 }
 
-func (r *inMemoryRefreshToken) Create(_ context.Context, t models.RefreshToken) (models.RefreshToken, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.seq++
-	t.ID = fmt.Sprintf("mem-%d", r.seq)
-	t.CreatedAt = time.Now()
-	r.byHash[t.TokenHash] = t
-	return t, nil
+func (r *RefreshTokenPostgres) Create(ctx context.Context, t models.RefreshToken) (models.RefreshToken, error) {
+	err := r.db.QueryRow(ctx,
+		`INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+		 VALUES ($1, $2, $3) RETURNING id, created_at`,
+		t.UserID, t.TokenHash, t.ExpiresAt,
+	).Scan(&t.ID, &t.CreatedAt)
+	return t, err
 }
 
-func (r *inMemoryRefreshToken) FindByHash(_ context.Context, hash string) (models.RefreshToken, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	t, ok := r.byHash[hash]
-	if !ok {
+func (r *RefreshTokenPostgres) FindByHash(ctx context.Context, hash string) (models.RefreshToken, error) {
+	var t models.RefreshToken
+	err := r.db.QueryRow(ctx,
+		`SELECT id, user_id, token_hash, expires_at, revoked_at, created_at
+		 FROM refresh_tokens WHERE token_hash = $1`, hash,
+	).Scan(&t.ID, &t.UserID, &t.TokenHash, &t.ExpiresAt, &t.RevokedAt, &t.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
 		return models.RefreshToken{}, ErrRefreshTokenNotFound
 	}
-	return t, nil
+	return t, err
 }
 
-func (r *inMemoryRefreshToken) Revoke(_ context.Context, hash string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	t, ok := r.byHash[hash]
-	if !ok {
+func (r *RefreshTokenPostgres) Revoke(ctx context.Context, hash string) error {
+	tag, err := r.db.Exec(ctx,
+		`UPDATE refresh_tokens SET revoked_at = now()
+		 WHERE token_hash = $1 AND revoked_at IS NULL`, hash)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
 		return ErrRefreshTokenNotFound
 	}
-	now := time.Now()
-	t.RevokedAt = &now
-	r.byHash[hash] = t
 	return nil
 }

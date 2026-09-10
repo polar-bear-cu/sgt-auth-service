@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	ctx := context.Background()
+	pool, err := config.ConnectPostgres(ctx, cfg.DB.DSN())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
 	oauthCfg := &oauth2.Config{
 		ClientID:     cfg.Google.ClientID,
 		ClientSecret: cfg.Google.ClientSecret,
@@ -28,7 +36,7 @@ func main() {
 		Endpoint:     google.Endpoint,
 	}
 
-	refresh := repositories.NewInMemoryRefreshToken()
+	refresh := repositories.NewRefreshTokenPostgres(pool)
 	uc := usecases.NewAuth(oauthCfg, cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL, refresh)
 	authCtrl := controllers.NewAuth(uc)
 
