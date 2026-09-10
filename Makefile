@@ -1,4 +1,4 @@
-.PHONY: run test lint format tidy
+.PHONY: run test lint format tidy compose-up compose-down
 
 run:
 	go run .
@@ -14,3 +14,9 @@ lint:
 
 tidy:
 	go mod tidy
+
+compose-up:
+	docker compose up --build -d --wait
+
+compose-down:
+	docker compose down

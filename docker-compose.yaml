@@ -1,0 +1,54 @@
+services:
+  auth-service:
+    build: .
+    ports:
+      - "8084:8080"
+    environment:
+      JWT_SECRET: some-secret
+      ACCESS_TTL: 15m
+      REFRESH_TTL: 720h
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URL: http://localhost:8084/api/v1/auth/google/callback
+      USER_SERVICE_ADDR: host.docker.internal:50052
+      DB_HOST: postgres
+      DB_PORT: "5435"
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: auth
+      DB_SSLMODE: disable
+      TZ: Asia/Bangkok
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: auth
+      PGPORT: 5435
+      TZ: Asia/Bangkok
+    ports:
+      - "5435:5435"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  pgweb:
+    image: sosedoff/pgweb:latest
+    ports:
+      - "8085:8081"
+    environment:
+      PGWEB_DATABASE_URL: postgres://postgres:postgres@postgres:5435/auth?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
