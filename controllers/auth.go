@@ -21,12 +21,27 @@ func NewAuth(uc *usecases.AuthUsecase) *AuthController {
 	return &AuthController{uc: uc}
 }
 
+// GoogleLogin godoc
+// @Summary  start Google OAuth flow
+// @Tags     auth
+// @Success  302
+// @Router   /api/v1/auth/google/login [get]
 func (ctl *AuthController) GoogleLogin(c *gin.Context) {
 	state := randomState()
 	c.SetCookie(stateCookie, state, 600, "/", "", false, true)
 	c.Redirect(http.StatusFound, ctl.uc.LoginURL(state))
 }
 
+// GoogleCallback godoc
+// @Summary  OAuth callback, issues token pair
+// @Tags     auth
+// @Produce  json
+// @Param    code   query     string  true  "authorization code"
+// @Param    state  query     string  true  "csrf state"
+// @Success  200    {object}  dtos.TokenResponse
+// @Failure  400    {object}  map[string]string
+// @Failure  502    {object}  map[string]string
+// @Router   /api/v1/auth/google/callback [get]
 func (ctl *AuthController) GoogleCallback(c *gin.Context) {
 	want, err := c.Cookie(stateCookie)
 	if err != nil || want == "" || c.Query("state") != want {
@@ -49,6 +64,16 @@ func (ctl *AuthController) GoogleCallback(c *gin.Context) {
 	c.JSON(http.StatusOK, toTokenResponse(pair))
 }
 
+// Refresh godoc
+// @Summary  rotate refresh token, issue new pair
+// @Tags     auth
+// @Accept   json
+// @Produce  json
+// @Param    body  body      dtos.RefreshRequest  true  "refresh token"
+// @Success  200   {object}  dtos.TokenResponse
+// @Failure  400   {object}  map[string]string
+// @Failure  401   {object}  map[string]string
+// @Router   /api/v1/auth/refresh [post]
 func (ctl *AuthController) Refresh(c *gin.Context) {
 	var req dtos.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -68,6 +93,14 @@ func (ctl *AuthController) Refresh(c *gin.Context) {
 	c.JSON(http.StatusOK, toTokenResponse(pair))
 }
 
+// Logout godoc
+// @Summary  revoke refresh token
+// @Tags     auth
+// @Accept   json
+// @Param    body  body  dtos.RefreshRequest  true  "refresh token"
+// @Success  204
+// @Failure  400  {object}  map[string]string
+// @Router   /api/v1/auth/logout [post]
 func (ctl *AuthController) Logout(c *gin.Context) {
 	var req dtos.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

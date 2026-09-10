@@ -32,6 +32,7 @@ migrations/     sql migration
 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 go install github.com/evilmartians/lefthook@latest
+go install github.com/swaggo/swag/cmd/swag@v1.16.6
 ```
 
 ### Google OAuth setup (ครั้งเดียว)
@@ -51,6 +52,7 @@ cp .env.example .env
 go mod download
 make compose-up
 make migrate-up
+make run
 ```
 
 user-service ต้องรันด้วย (gRPC `:50052`) — callback ถึงจะสำเร็จ
@@ -58,6 +60,14 @@ user-service ต้องรันด้วย (gRPC `:50052`) — callback ถ�
 ### Useful Commands
 
 Check `Makefile`
+
+### API Docs (Swagger)
+
+```terminal
+make docs
+```
+
+Document is at http://localhost:8084/swagger/index.html (ต้อง `ENABLE_SWAGGER=true`)
 
 ### Migrations
 

@@ -14,6 +14,7 @@ type Config struct {
 	AccessTTL       time.Duration
 	RefreshTTL      time.Duration
 	UserServiceAddr string
+	SwaggerEnabled  bool
 	Google          GoogleConfig
 	DB              DBConfig
 }
@@ -39,6 +40,7 @@ func Load() (*Config, error) {
 		AccessTTL:       envDuration("ACCESS_TTL", 15*time.Minute),
 		RefreshTTL:      envDuration("REFRESH_TTL", 720*time.Hour),
 		UserServiceAddr: env("USER_SERVICE_ADDR", "localhost:50052"),
+		SwaggerEnabled:  env("ENABLE_SWAGGER", "false") == "true",
 		Google: GoogleConfig{
 			ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),

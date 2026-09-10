@@ -13,11 +13,15 @@ import (
 	"github.com/polar-bear-cu/sgt-auth-service/clients"
 	"github.com/polar-bear-cu/sgt-auth-service/config"
 	"github.com/polar-bear-cu/sgt-auth-service/controllers"
+	_ "github.com/polar-bear-cu/sgt-auth-service/docs"
 	"github.com/polar-bear-cu/sgt-auth-service/repositories"
 	"github.com/polar-bear-cu/sgt-auth-service/routes"
 	"github.com/polar-bear-cu/sgt-auth-service/usecases"
 )
 
+// @title        Auth Service API
+// @version      1.0
+// @description  Google OAuth2 + JWT for the Subglutee project
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -51,7 +55,7 @@ func main() {
 	authCtrl := controllers.NewAuth(uc)
 
 	r := gin.Default()
-	routes.Register(r, authCtrl)
+	routes.Register(r, authCtrl, cfg.SwaggerEnabled)
 
 	log.Println("listening :" + cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

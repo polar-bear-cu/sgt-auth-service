@@ -3,6 +3,7 @@ DB_URL ?= postgres://postgres:postgres@localhost:5435/auth?sslmode=disable
 .PHONY: run test lint format tidy compose-up compose-down migrate-up migrate-down migrate-create
 
 run:
+	swag init -g main.go -o docs --parseInternal
 	go run .
 
 test:
@@ -17,8 +18,11 @@ lint:
 tidy:
 	go mod tidy
 
+docs:
+	swag init -g main.go -o docs --parseInternal
+
 compose-up:
-	docker compose up --build -d --wait
+	docker compose up -d --wait --remove-orphans
 
 compose-down:
 	docker compose down

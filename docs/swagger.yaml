@@ -1,0 +1,146 @@
+definitions:
+  dtos.HealthResponse:
+    properties:
+      serviceName:
+        type: string
+      status:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  dtos.RefreshRequest:
+    properties:
+      refreshToken:
+        type: string
+    required:
+    - refreshToken
+    type: object
+  dtos.TokenResponse:
+    properties:
+      accessToken:
+        type: string
+      expiresIn:
+        type: integer
+      refreshToken:
+        type: string
+      tokenType:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Google OAuth2 + JWT for the Subglutee project
+  title: Auth Service API
+  version: "1.0"
+paths:
+  /api/v1/auth/google/callback:
+    get:
+      parameters:
+      - description: authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: csrf state
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "502":
+          description: Bad Gateway
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: OAuth callback, issues token pair
+      tags:
+      - auth
+  /api/v1/auth/google/login:
+    get:
+      responses:
+        "302":
+          description: Found
+      summary: start Google OAuth flow
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RefreshRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: revoke refresh token
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dtos.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: rotate refresh token, issue new pair
+      tags:
+      - auth
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dtos.HealthResponse'
+      summary: health check
+      tags:
+      - ops
+swagger: "2.0"
