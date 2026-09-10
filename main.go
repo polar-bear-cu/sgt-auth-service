@@ -7,7 +7,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/polar-bear-cu/sgt-auth-service/clients"
 	"github.com/polar-bear-cu/sgt-auth-service/config"
 	"github.com/polar-bear-cu/sgt-auth-service/controllers"
 	"github.com/polar-bear-cu/sgt-auth-service/repositories"
@@ -28,6 +31,12 @@ func main() {
 	}
 	defer pool.Close()
 
+	userConn, err := grpc.NewClient(cfg.UserServiceAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer func() { _ = userConn.Close() }()
+
 	oauthCfg := &oauth2.Config{
 		ClientID:     cfg.Google.ClientID,
 		ClientSecret: cfg.Google.ClientSecret,
@@ -37,7 +46,8 @@ func main() {
 	}
 
 	refresh := repositories.NewRefreshTokenPostgres(pool)
-	uc := usecases.NewAuth(oauthCfg, cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL, refresh)
+	userClient := clients.NewUserClient(userConn)
+	uc := usecases.NewAuth(oauthCfg, userClient, cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL, refresh)
 	authCtrl := controllers.NewAuth(uc)
 
 	r := gin.Default()

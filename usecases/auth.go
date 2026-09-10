@@ -27,8 +27,13 @@ type TokenPair struct {
 	ExpiresIn    int
 }
 
+type UserDirectory interface {
+	FindOrCreateUser(ctx context.Context, email, googleSub string) (userID string, err error)
+}
+
 type AuthUsecase struct {
 	oauthConfig *oauth2.Config
+	users       UserDirectory
 	jwtSecret   string
 	accessTTL   time.Duration
 	refreshTTL  time.Duration
@@ -37,12 +42,14 @@ type AuthUsecase struct {
 
 func NewAuth(
 	oauthConfig *oauth2.Config,
+	users UserDirectory,
 	jwtSecret string,
 	accessTTL, refreshTTL time.Duration,
 	refresh repositories.RefreshTokenRepository,
 ) *AuthUsecase {
 	return &AuthUsecase{
 		oauthConfig: oauthConfig,
+		users:       users,
 		jwtSecret:   jwtSecret,
 		accessTTL:   accessTTL,
 		refreshTTL:  refreshTTL,
@@ -65,7 +72,12 @@ func (u *AuthUsecase) HandleCallback(ctx context.Context, code string) (TokenPai
 		return TokenPair{}, err
 	}
 
-	return u.issue(ctx, info.Sub, info.Email)
+	userID, err := u.users.FindOrCreateUser(ctx, info.Email, info.Sub)
+	if err != nil {
+		return TokenPair{}, fmt.Errorf("resolve user: %w", err)
+	}
+
+	return u.issue(ctx, userID, info.Email)
 }
 
 func (u *AuthUsecase) Refresh(ctx context.Context, rawRefreshToken string) (TokenPair, error) {
