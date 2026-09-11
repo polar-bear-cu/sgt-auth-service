@@ -15,6 +15,7 @@ type Config struct {
 	RefreshTTL      time.Duration
 	UserServiceAddr string
 	SwaggerEnabled  bool
+	PublicURL       string
 	Google          GoogleConfig
 	DB              DBConfig
 }
@@ -41,10 +42,11 @@ func Load() (*Config, error) {
 		RefreshTTL:      envDuration("REFRESH_TTL", 720*time.Hour),
 		UserServiceAddr: env("USER_SERVICE_ADDR", "localhost:50052"),
 		SwaggerEnabled:  env("ENABLE_SWAGGER", "false") == "true",
+		PublicURL:       env("PUBLIC_URL", "http://localhost:8000"),
 		Google: GoogleConfig{
 			ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 			ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-			RedirectURL:  env("GOOGLE_REDIRECT_URL", "http://localhost:8084/api/v1/auth/google/callback"),
+			RedirectURL:  env("GOOGLE_REDIRECT_URL", "http://localhost:8000/api/v1/auth/google/callback"),
 		},
 		DB: DBConfig{
 			Host:     env("DB_HOST", "localhost"),
