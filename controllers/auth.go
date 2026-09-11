@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"net/http"
+	"net/url"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/polar-bear-cu/sgt-auth-service/dtos"
@@ -14,11 +16,12 @@ import (
 const stateCookie = "oauth_state"
 
 type AuthController struct {
-	uc *usecases.AuthUsecase
+	uc        *usecases.AuthUsecase
+	publicURL string
 }
 
-func NewAuth(uc *usecases.AuthUsecase) *AuthController {
-	return &AuthController{uc: uc}
+func NewAuth(uc *usecases.AuthUsecase, publicURL string) *AuthController {
+	return &AuthController{uc: uc, publicURL: publicURL}
 }
 
 // GoogleLogin godoc
@@ -33,35 +36,47 @@ func (ctl *AuthController) GoogleLogin(c *gin.Context) {
 }
 
 // GoogleCallback godoc
-// @Summary  OAuth callback, issues token pair
+// @Summary  OAuth callback, redirects to the frontend with the token pair
 // @Tags     auth
-// @Produce  json
-// @Param    code   query     string  true  "authorization code"
-// @Param    state  query     string  true  "csrf state"
-// @Success  200    {object}  dtos.TokenResponse
-// @Failure  400    {object}  map[string]string
-// @Failure  502    {object}  map[string]string
+// @Param    code   query  string  true  "authorization code"
+// @Param    state  query  string  true  "csrf state"
+// @Success  302
 // @Router   /api/v1/auth/google/callback [get]
 func (ctl *AuthController) GoogleCallback(c *gin.Context) {
 	want, err := c.Cookie(stateCookie)
 	if err != nil || want == "" || c.Query("state") != want {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid oauth state"})
+		ctl.callbackError(c, "invalid_state")
 		return
 	}
 	c.SetCookie(stateCookie, "", -1, "/", "", false, true)
 
 	code := c.Query("code")
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing code"})
+		ctl.callbackError(c, "missing_code")
 		return
 	}
 
 	pair, err := ctl.uc.HandleCallback(c.Request.Context(), code)
 	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+		ctl.callbackError(c, "exchange_failed")
 		return
 	}
-	c.JSON(http.StatusOK, toTokenResponse(pair))
+	ctl.callbackSession(c, pair)
+}
+
+func (ctl *AuthController) callbackSession(c *gin.Context, pair usecases.TokenPair) {
+	resp := toTokenResponse(pair)
+	fragment := url.Values{
+		"access_token":  {resp.AccessToken},
+		"refresh_token": {resp.RefreshToken},
+		"expires_in":    {strconv.Itoa(resp.ExpiresIn)},
+		"token_type":    {resp.TokenType},
+	}
+	c.Redirect(http.StatusFound, ctl.publicURL+"/auth/callback#"+fragment.Encode())
+}
+
+func (ctl *AuthController) callbackError(c *gin.Context, reason string) {
+	c.Redirect(http.StatusFound, ctl.publicURL+"/login?error="+url.QueryEscape(reason))
 }
 
 // Refresh godoc

@@ -45,26 +45,10 @@ paths:
         name: state
         required: true
         type: string
-      produces:
-      - application/json
       responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/dtos.TokenResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "502":
-          description: Bad Gateway
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: OAuth callback, issues token pair
+        "302":
+          description: Found
+      summary: OAuth callback, redirects to the frontend with the token pair
       tags:
       - auth
   /api/v1/auth/google/login:

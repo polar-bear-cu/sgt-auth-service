@@ -17,13 +17,10 @@ const docTemplate = `{
     "paths": {
         "/api/v1/auth/google/callback": {
             "get": {
-                "produces": [
-                    "application/json"
-                ],
                 "tags": [
                     "auth"
                 ],
-                "summary": "OAuth callback, issues token pair",
+                "summary": "OAuth callback, redirects to the frontend with the token pair",
                 "parameters": [
                     {
                         "type": "string",
@@ -41,29 +38,8 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/dtos.TokenResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
-                    },
-                    "502": {
-                        "description": "Bad Gateway",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
+                    "302": {
+                        "description": "Found"
                     }
                 }
             }
