@@ -57,6 +57,13 @@ make run
 
 user-service ต้องรันด้วย (gRPC `:50052`) — callback ถึงจะสำเร็จ
 
+### Run alternatively (container)
+
+```terminal
+make image
+make container
+```
+
 ### Useful Commands
 
 Check `Makefile`
