@@ -89,5 +89,11 @@ make migrate-down
 
 ```terminal
 cd ..
+go work init ./sgt-proto ./sgt-auth-service
+```
+
+หรือถ้ามี go.work แล้ว...
+
+```terminal
 go work use ./sgt-proto ./sgt-auth-service
 ```
