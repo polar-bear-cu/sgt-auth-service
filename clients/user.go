@@ -15,10 +15,12 @@ func NewUserClient(conn *grpc.ClientConn) *UserClient {
 	return &UserClient{rpc: userv1.NewUserServiceClient(conn)}
 }
 
-func (u *UserClient) FindOrCreateUser(ctx context.Context, email, googleSub string) (string, error) {
+func (u *UserClient) FindOrCreateUser(ctx context.Context, email, googleSub, name, pictureURL string) (string, error) {
 	resp, err := u.rpc.FindOrCreateUser(ctx, &userv1.FindOrCreateUserRequest{
-		Email:     email,
-		GoogleSub: googleSub,
+		Email:      email,
+		GoogleSub:  googleSub,
+		Name:       name,
+		PictureUrl: pictureURL,
 	})
 	if err != nil {
 		return "", err

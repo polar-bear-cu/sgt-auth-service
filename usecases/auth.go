@@ -28,7 +28,7 @@ type TokenPair struct {
 }
 
 type UserDirectory interface {
-	FindOrCreateUser(ctx context.Context, email, googleSub string) (userID string, err error)
+	FindOrCreateUser(ctx context.Context, email, googleSub, name, pictureURL string) (userID string, err error)
 }
 
 type AuthUsecase struct {
@@ -72,7 +72,7 @@ func (u *AuthUsecase) HandleCallback(ctx context.Context, code string) (TokenPai
 		return TokenPair{}, err
 	}
 
-	userID, err := u.users.FindOrCreateUser(ctx, info.Email, info.Sub)
+	userID, err := u.users.FindOrCreateUser(ctx, info.Email, info.Sub, info.Name, info.Picture)
 	if err != nil {
 		return TokenPair{}, fmt.Errorf("resolve user: %w", err)
 	}
