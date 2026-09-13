@@ -9,10 +9,12 @@ import (
 // Access-token payload
 type Claims struct {
 	jwt.RegisteredClaims
-	Email string `json:"email"`
+	Email   string `json:"email"`
+	Name    string `json:"name,omitempty"`
+	Picture string `json:"picture,omitempty"`
 }
 
-func SignAccess(secret, userID, email string, ttl time.Duration) (string, error) {
+func SignAccess(secret, userID, email, name, picture string, ttl time.Duration) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -20,7 +22,9 @@ func SignAccess(secret, userID, email string, ttl time.Duration) (string, error)
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 		},
-		Email: email,
+		Email:   email,
+		Name:    name,
+		Picture: picture,
 	}
 	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return tok.SignedString([]byte(secret))

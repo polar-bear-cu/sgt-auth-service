@@ -77,7 +77,7 @@ func (u *AuthUsecase) HandleCallback(ctx context.Context, code string) (TokenPai
 		return TokenPair{}, fmt.Errorf("resolve user: %w", err)
 	}
 
-	return u.issue(ctx, userID, info.Email)
+	return u.issue(ctx, userID, info.Email, info.Name, info.Picture)
 }
 
 func (u *AuthUsecase) Refresh(ctx context.Context, rawRefreshToken string) (TokenPair, error) {
@@ -93,7 +93,7 @@ func (u *AuthUsecase) Refresh(ctx context.Context, rawRefreshToken string) (Toke
 		return TokenPair{}, err
 	}
 
-	return u.issue(ctx, rec.UserID, "")
+	return u.issue(ctx, rec.UserID, "", "", "")
 }
 
 func (u *AuthUsecase) Logout(ctx context.Context, rawRefreshToken string) error {
@@ -104,8 +104,8 @@ func (u *AuthUsecase) Logout(ctx context.Context, rawRefreshToken string) error 
 	return err
 }
 
-func (u *AuthUsecase) issue(ctx context.Context, userID, email string) (TokenPair, error) {
-	access, err := tokens.SignAccess(u.jwtSecret, userID, email, u.accessTTL)
+func (u *AuthUsecase) issue(ctx context.Context, userID, email, name, picture string) (TokenPair, error) {
+	access, err := tokens.SignAccess(u.jwtSecret, userID, email, name, picture, u.accessTTL)
 	if err != nil {
 		return TokenPair{}, err
 	}
