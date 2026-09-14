@@ -18,12 +18,19 @@ type Config struct {
 	PublicURL       string
 	Google          GoogleConfig
 	DB              DBConfig
+	Cookie          CookieConfig
 }
 
 type GoogleConfig struct {
 	ClientID     string
 	ClientSecret string
 	RedirectURL  string
+}
+
+type CookieConfig struct {
+	Domain   string
+	Secure   bool
+	SameSite string // "lax" | "strict" | "none"
 }
 
 type DBConfig struct{ Host, Port, User, Password, Name, SSLMode string }
@@ -55,6 +62,11 @@ func Load() (*Config, error) {
 			Password: os.Getenv("DB_PASSWORD"),
 			Name:     env("DB_NAME", "auth"),
 			SSLMode:  env("DB_SSLMODE", "disable"),
+		},
+		Cookie: CookieConfig{
+			Domain:   env("COOKIE_DOMAIN", ""),
+			Secure:   env("COOKIE_SECURE", "false") == "true",
+			SameSite: env("COOKIE_SAMESITE", "lax"),
 		},
 	}
 	if cfg.JWTSecret == "" {
