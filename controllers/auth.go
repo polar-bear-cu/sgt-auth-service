@@ -109,23 +109,20 @@ func (ctl *AuthController) callbackError(c *gin.Context, reason string) {
 }
 
 // Refresh godoc
-// @Summary  rotate refresh token, issue new pair
+// @Summary  rotate refresh token, issue new pair (reads refresh_token cookie)
 // @Tags     auth
-// @Accept   json
 // @Produce  json
-// @Param    body  body      dtos.RefreshRequest  true  "refresh token"
-// @Success  200   {object}  dtos.TokenResponse
-// @Failure  400   {object}  map[string]string
-// @Failure  401   {object}  map[string]string
+// @Success  200  {object}  dtos.TokenResponse
+// @Failure  401  {object}  map[string]string
 // @Router   /api/v1/auth/refresh [post]
 func (ctl *AuthController) Refresh(c *gin.Context) {
-	var req dtos.RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	raw, err := c.Cookie(refreshCookie)
+	if err != nil || raw == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing refresh token"})
 		return
 	}
 
-	pair, err := ctl.uc.Refresh(c.Request.Context(), req.RefreshToken)
+	pair, err := ctl.uc.Refresh(c.Request.Context(), raw)
 	if err != nil {
 		if errors.Is(err, usecases.ErrRefreshInvalid) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -134,6 +131,7 @@ func (ctl *AuthController) Refresh(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	ctl.setRefreshCookie(c, pair.RefreshToken)
 	c.JSON(http.StatusOK, toTokenResponse(pair))
 }
 
