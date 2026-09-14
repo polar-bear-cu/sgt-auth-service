@@ -21,8 +21,6 @@ definitions:
         type: string
       expiresIn:
         type: integer
-      refreshToken:
-        type: string
       tokenType:
         type: string
     type: object
@@ -84,15 +82,6 @@ paths:
       - auth
   /api/v1/auth/refresh:
     post:
-      consumes:
-      - application/json
-      parameters:
-      - description: refresh token
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dtos.RefreshRequest'
       produces:
       - application/json
       responses:
@@ -100,19 +89,13 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dtos.TokenResponse'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "401":
           description: Unauthorized
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: rotate refresh token, issue new pair
+      summary: rotate refresh token, issue new pair (reads refresh_token cookie)
       tags:
       - auth
   /health:

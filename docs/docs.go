@@ -95,41 +95,18 @@ const docTemplate = `{
         },
         "/api/v1/auth/refresh": {
             "post": {
-                "consumes": [
-                    "application/json"
-                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "auth"
                 ],
-                "summary": "rotate refresh token, issue new pair",
-                "parameters": [
-                    {
-                        "description": "refresh token",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.RefreshRequest"
-                        }
-                    }
-                ],
+                "summary": "rotate refresh token, issue new pair (reads refresh_token cookie)",
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/dtos.TokenResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
                         }
                     },
                     "401": {
@@ -198,9 +175,6 @@ const docTemplate = `{
                 },
                 "expiresIn": {
                     "type": "integer"
-                },
-                "refreshToken": {
-                    "type": "string"
                 },
                 "tokenType": {
                     "type": "string"

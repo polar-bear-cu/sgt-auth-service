@@ -59,7 +59,11 @@ func main() {
 	refresh := repositories.NewRefreshTokenPostgres(pool)
 	userClient := clients.NewUserClient(userConn)
 	uc := usecases.NewAuth(oauthCfg, userClient, cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL, refresh)
-	authCtrl := controllers.NewAuth(uc, cfg.PublicURL)
+	authCtrl := controllers.NewAuth(uc, cfg.PublicURL, controllers.CookieOptions{
+		Domain:   cfg.Cookie.Domain,
+		Secure:   cfg.Cookie.Secure,
+		SameSite: cfg.Cookie.SameSite,
+	}, cfg.RefreshTTL)
 
 	r := gin.Default()
 	routes.Register(r, authCtrl, cfg.SwaggerEnabled)
