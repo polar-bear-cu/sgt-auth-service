@@ -29,6 +29,7 @@ type TokenPair struct {
 
 type UserDirectory interface {
 	FindOrCreateUser(ctx context.Context, email, googleSub, name, pictureURL string) (userID string, err error)
+	GetUser(ctx context.Context, id string) (email, name, pictureURL string, err error)
 }
 
 type AuthUsecase struct {
@@ -93,7 +94,11 @@ func (u *AuthUsecase) Refresh(ctx context.Context, rawRefreshToken string) (Toke
 		return TokenPair{}, err
 	}
 
-	return u.issue(ctx, rec.UserID, "", "", "")
+	email, name, picture, err := u.users.GetUser(ctx, rec.UserID)
+	if err != nil {
+		return TokenPair{}, fmt.Errorf("resolve user: %w", err)
+	}
+	return u.issue(ctx, rec.UserID, email, name, picture)
 }
 
 func (u *AuthUsecase) Logout(ctx context.Context, rawRefreshToken string) error {

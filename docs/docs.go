@@ -59,36 +59,13 @@ const docTemplate = `{
         },
         "/api/v1/auth/logout": {
             "post": {
-                "consumes": [
-                    "application/json"
-                ],
                 "tags": [
                     "auth"
                 ],
-                "summary": "revoke refresh token",
-                "parameters": [
-                    {
-                        "description": "refresh token",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dtos.RefreshRequest"
-                        }
-                    }
-                ],
+                "summary": "revoke refresh token (reads refresh_token cookie)",
                 "responses": {
                     "204": {
                         "description": "No Content"
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
-                        }
                     }
                 }
             }
@@ -152,17 +129,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "timestamp": {
-                    "type": "string"
-                }
-            }
-        },
-        "dtos.RefreshRequest": {
-            "type": "object",
-            "required": [
-                "refreshToken"
-            ],
-            "properties": {
-                "refreshToken": {
                     "type": "string"
                 }
             }
