@@ -5,7 +5,3 @@ type TokenResponse struct {
 	ExpiresIn   int    `json:"expiresIn"`
 	TokenType   string `json:"tokenType"`
 }
-
-type RefreshRequest struct {
-	RefreshToken string `json:"refreshToken" binding:"required"`
-}

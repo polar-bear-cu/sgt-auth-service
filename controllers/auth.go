@@ -93,6 +93,11 @@ func (ctl *AuthController) setRefreshCookie(c *gin.Context, token string) {
 	c.SetCookie(refreshCookie, token, int(ctl.refreshTTL.Seconds()), refreshCookiePath, ctl.cookie.Domain, ctl.cookie.Secure, true)
 }
 
+func (ctl *AuthController) clearRefreshCookie(c *gin.Context) {
+	c.SetSameSite(sameSiteMode(ctl.cookie.SameSite))
+	c.SetCookie(refreshCookie, "", -1, refreshCookiePath, ctl.cookie.Domain, ctl.cookie.Secure, true)
+}
+
 func sameSiteMode(s string) http.SameSite {
 	switch s {
 	case "strict":
@@ -136,24 +141,19 @@ func (ctl *AuthController) Refresh(c *gin.Context) {
 }
 
 // Logout godoc
-// @Summary  revoke refresh token
+// @Summary  revoke refresh token (reads refresh_token cookie)
 // @Tags     auth
-// @Accept   json
-// @Param    body  body  dtos.RefreshRequest  true  "refresh token"
 // @Success  204
-// @Failure  400  {object}  map[string]string
 // @Router   /api/v1/auth/logout [post]
 func (ctl *AuthController) Logout(c *gin.Context) {
-	var req dtos.RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	raw, err := c.Cookie(refreshCookie)
+	if err == nil && raw != "" {
+		if err := ctl.uc.Logout(c.Request.Context(), raw); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
-
-	if err := ctl.uc.Logout(c.Request.Context(), req.RefreshToken); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+	ctl.clearRefreshCookie(c)
 	c.Status(http.StatusNoContent)
 }
 
