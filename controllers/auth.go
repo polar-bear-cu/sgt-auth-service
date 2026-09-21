@@ -7,21 +7,34 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/polar-bear-cu/sgt-auth-service/dtos"
 	"github.com/polar-bear-cu/sgt-auth-service/usecases"
 )
 
-const stateCookie = "oauth_state"
+const (
+	stateCookie       = "oauth_state"
+	refreshCookie     = "refresh_token"
+	refreshCookiePath = "/api/v1/auth"
+)
 
-type AuthController struct {
-	uc        *usecases.AuthUsecase
-	publicURL string
+type CookieOptions struct {
+	Domain   string
+	Secure   bool
+	SameSite string // "lax" | "strict" | "none"
 }
 
-func NewAuth(uc *usecases.AuthUsecase, publicURL string) *AuthController {
-	return &AuthController{uc: uc, publicURL: publicURL}
+type AuthController struct {
+	uc         *usecases.AuthUsecase
+	publicURL  string
+	cookie     CookieOptions
+	refreshTTL time.Duration
+}
+
+func NewAuth(uc *usecases.AuthUsecase, publicURL string, cookie CookieOptions, refreshTTL time.Duration) *AuthController {
+	return &AuthController{uc: uc, publicURL: publicURL, cookie: cookie, refreshTTL: refreshTTL}
 }
 
 // GoogleLogin godoc
@@ -65,14 +78,35 @@ func (ctl *AuthController) GoogleCallback(c *gin.Context) {
 }
 
 func (ctl *AuthController) callbackSession(c *gin.Context, pair usecases.TokenPair) {
+	ctl.setRefreshCookie(c, pair.RefreshToken)
 	resp := toTokenResponse(pair)
 	fragment := url.Values{
-		"access_token":  {resp.AccessToken},
-		"refresh_token": {resp.RefreshToken},
-		"expires_in":    {strconv.Itoa(resp.ExpiresIn)},
-		"token_type":    {resp.TokenType},
+		"access_token": {resp.AccessToken},
+		"expires_in":   {strconv.Itoa(resp.ExpiresIn)},
+		"token_type":   {resp.TokenType},
 	}
 	c.Redirect(http.StatusFound, ctl.publicURL+"/auth/callback#"+fragment.Encode())
+}
+
+func (ctl *AuthController) setRefreshCookie(c *gin.Context, token string) {
+	c.SetSameSite(sameSiteMode(ctl.cookie.SameSite))
+	c.SetCookie(refreshCookie, token, int(ctl.refreshTTL.Seconds()), refreshCookiePath, ctl.cookie.Domain, ctl.cookie.Secure, true)
+}
+
+func (ctl *AuthController) clearRefreshCookie(c *gin.Context) {
+	c.SetSameSite(sameSiteMode(ctl.cookie.SameSite))
+	c.SetCookie(refreshCookie, "", -1, refreshCookiePath, ctl.cookie.Domain, ctl.cookie.Secure, true)
+}
+
+func sameSiteMode(s string) http.SameSite {
+	switch s {
+	case "strict":
+		return http.SameSiteStrictMode
+	case "none":
+		return http.SameSiteNoneMode
+	default:
+		return http.SameSiteLaxMode
+	}
 }
 
 func (ctl *AuthController) callbackError(c *gin.Context, reason string) {
@@ -80,23 +114,20 @@ func (ctl *AuthController) callbackError(c *gin.Context, reason string) {
 }
 
 // Refresh godoc
-// @Summary  rotate refresh token, issue new pair
+// @Summary  rotate refresh token, issue new pair (reads refresh_token cookie)
 // @Tags     auth
-// @Accept   json
 // @Produce  json
-// @Param    body  body      dtos.RefreshRequest  true  "refresh token"
-// @Success  200   {object}  dtos.TokenResponse
-// @Failure  400   {object}  map[string]string
-// @Failure  401   {object}  map[string]string
+// @Success  200  {object}  dtos.TokenResponse
+// @Failure  401  {object}  map[string]string
 // @Router   /api/v1/auth/refresh [post]
 func (ctl *AuthController) Refresh(c *gin.Context) {
-	var req dtos.RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	raw, err := c.Cookie(refreshCookie)
+	if err != nil || raw == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing refresh token"})
 		return
 	}
 
-	pair, err := ctl.uc.Refresh(c.Request.Context(), req.RefreshToken)
+	pair, err := ctl.uc.Refresh(c.Request.Context(), raw)
 	if err != nil {
 		if errors.Is(err, usecases.ErrRefreshInvalid) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
@@ -105,37 +136,32 @@ func (ctl *AuthController) Refresh(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	ctl.setRefreshCookie(c, pair.RefreshToken)
 	c.JSON(http.StatusOK, toTokenResponse(pair))
 }
 
 // Logout godoc
-// @Summary  revoke refresh token
+// @Summary  revoke refresh token (reads refresh_token cookie)
 // @Tags     auth
-// @Accept   json
-// @Param    body  body  dtos.RefreshRequest  true  "refresh token"
 // @Success  204
-// @Failure  400  {object}  map[string]string
 // @Router   /api/v1/auth/logout [post]
 func (ctl *AuthController) Logout(c *gin.Context) {
-	var req dtos.RefreshRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+	raw, err := c.Cookie(refreshCookie)
+	if err == nil && raw != "" {
+		if err := ctl.uc.Logout(c.Request.Context(), raw); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
-
-	if err := ctl.uc.Logout(c.Request.Context(), req.RefreshToken); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+	ctl.clearRefreshCookie(c)
 	c.Status(http.StatusNoContent)
 }
 
 func toTokenResponse(p usecases.TokenPair) dtos.TokenResponse {
 	return dtos.TokenResponse{
-		AccessToken:  p.AccessToken,
-		RefreshToken: p.RefreshToken,
-		ExpiresIn:    p.ExpiresIn,
-		TokenType:    "Bearer",
+		AccessToken: p.AccessToken,
+		ExpiresIn:   p.ExpiresIn,
+		TokenType:   "Bearer",
 	}
 }
 
