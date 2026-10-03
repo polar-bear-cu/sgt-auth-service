@@ -109,6 +109,11 @@ func (u *AuthUsecase) Logout(ctx context.Context, rawRefreshToken string) error 
 	return err
 }
 
+// CleanupRefreshTokens deletes delete/revoked tokens
+func (u *AuthUsecase) CleanupRefreshTokens(ctx context.Context) (int64, error) {
+	return u.refresh.DeleteExpiredOrRevoked(ctx)
+}
+
 func (u *AuthUsecase) issue(ctx context.Context, userID, email, name, picture string) (TokenPair, error) {
 	access, err := tokens.SignAccess(u.jwtSecret, userID, email, name, picture, u.accessTTL)
 	if err != nil {

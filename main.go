@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os/signal"
 	"syscall"
@@ -14,11 +15,15 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/reflection"
+
+	authv1 "github.com/polar-bear-cu/sgt-proto/gen/go/auth/v1"
 
 	"github.com/polar-bear-cu/sgt-auth-service/clients"
 	"github.com/polar-bear-cu/sgt-auth-service/config"
 	"github.com/polar-bear-cu/sgt-auth-service/controllers"
 	_ "github.com/polar-bear-cu/sgt-auth-service/docs"
+	grpcserver "github.com/polar-bear-cu/sgt-auth-service/grpc"
 	"github.com/polar-bear-cu/sgt-auth-service/repositories"
 	"github.com/polar-bear-cu/sgt-auth-service/routes"
 	"github.com/polar-bear-cu/sgt-auth-service/usecases"
@@ -65,6 +70,17 @@ func main() {
 		SameSite: cfg.Cookie.SameSite,
 	}, cfg.RefreshTTL)
 
+	gs, lis, err := newGRPCServer(ctx, cfg.GRPCPort, uc)
+	if err != nil {
+		log.Fatal(err)
+	}
+	go func() {
+		log.Println("gRPC :" + cfg.GRPCPort)
+		if err := gs.Serve(lis); err != nil {
+			log.Printf("grpc serve: %v", err)
+		}
+	}()
+
 	r := gin.Default()
 	routes.Register(r, authCtrl, cfg.SwaggerEnabled)
 	srv := &http.Server{Addr: ":" + cfg.Port, Handler: r}
@@ -85,4 +101,18 @@ func main() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("http shutdown: %v", err)
 	}
+	gs.GracefulStop()
+}
+
+func newGRPCServer(ctx context.Context, port string, uc *usecases.AuthUsecase) (*grpc.Server, net.Listener, error) {
+	var lc net.ListenConfig
+	lis, err := lc.Listen(ctx, "tcp", ":"+port)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	gs := grpc.NewServer()
+	authv1.RegisterAuthServiceServer(gs, grpcserver.NewAuthServer(uc))
+	reflection.Register(gs)
+	return gs, lis, nil
 }

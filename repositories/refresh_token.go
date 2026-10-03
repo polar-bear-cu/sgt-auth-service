@@ -15,6 +15,7 @@ type RefreshTokenRepository interface {
 	Create(ctx context.Context, t models.RefreshToken) (models.RefreshToken, error)
 	FindByHash(ctx context.Context, hash string) (models.RefreshToken, error)
 	Revoke(ctx context.Context, hash string) error
+	DeleteExpiredOrRevoked(ctx context.Context) (int64, error)
 }
 
 type RefreshTokenPostgres struct {
@@ -57,4 +58,13 @@ func (r *RefreshTokenPostgres) Revoke(ctx context.Context, hash string) error {
 		return ErrRefreshTokenNotFound
 	}
 	return nil
+}
+
+func (r *RefreshTokenPostgres) DeleteExpiredOrRevoked(ctx context.Context) (int64, error) {
+	tag, err := r.db.Exec(ctx,
+		`DELETE FROM refresh_tokens WHERE revoked_at IS NOT NULL OR expires_at < now()`)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
 }
