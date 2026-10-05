@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	Port            string
+	GRPCPort        string
 	JWTSecret       string
 	AccessTTL       time.Duration
 	RefreshTTL      time.Duration
@@ -44,6 +45,7 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 	cfg := &Config{
 		Port:            env("PORT", "8080"),
+		GRPCPort:        env("GRPC_PORT", "50053"),
 		JWTSecret:       os.Getenv("JWT_SECRET"),
 		AccessTTL:       envDuration("ACCESS_TTL", 15*time.Minute),
 		RefreshTTL:      envDuration("REFRESH_TTL", 720*time.Hour),
