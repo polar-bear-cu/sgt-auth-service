@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	Port            string
+	GRPCPort        string
 	JWTSecret       string
 	AccessTTL       time.Duration
 	RefreshTTL      time.Duration
@@ -18,12 +19,19 @@ type Config struct {
 	PublicURL       string
 	Google          GoogleConfig
 	DB              DBConfig
+	Cookie          CookieConfig
 }
 
 type GoogleConfig struct {
 	ClientID     string
 	ClientSecret string
 	RedirectURL  string
+}
+
+type CookieConfig struct {
+	Domain   string
+	Secure   bool
+	SameSite string // "lax" | "strict" | "none"
 }
 
 type DBConfig struct{ Host, Port, User, Password, Name, SSLMode string }
@@ -37,6 +45,7 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 	cfg := &Config{
 		Port:            env("PORT", "8080"),
+		GRPCPort:        env("GRPC_PORT", "50053"),
 		JWTSecret:       os.Getenv("JWT_SECRET"),
 		AccessTTL:       envDuration("ACCESS_TTL", 15*time.Minute),
 		RefreshTTL:      envDuration("REFRESH_TTL", 720*time.Hour),
@@ -55,6 +64,11 @@ func Load() (*Config, error) {
 			Password: os.Getenv("DB_PASSWORD"),
 			Name:     env("DB_NAME", "auth"),
 			SSLMode:  env("DB_SSLMODE", "disable"),
+		},
+		Cookie: CookieConfig{
+			Domain:   env("COOKIE_DOMAIN", ""),
+			Secure:   env("COOKIE_SECURE", "false") == "true",
+			SameSite: env("COOKIE_SAMESITE", "lax"),
 		},
 	}
 	if cfg.JWTSecret == "" {
